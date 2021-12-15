@@ -10,6 +10,16 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.TextView
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 private const val TAG = "OurFragment"
 
@@ -22,9 +32,9 @@ class OurFragment : Fragment() {
     private lateinit var weightEt: EditText
     private lateinit var heightEt: EditText
 
-    private val repo = Repo()
 
-    private val bmiResponse = BMIResponse()
+
+    private var bmiResponse = BMIResponse()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -38,53 +48,39 @@ class OurFragment : Fragment() {
         weightEt = view.findViewById(R.id.weight_et)
         heightEt = view.findViewById(R.id.height_et)
 
-        bmiResponse.weight = weightEt.text.toString()
-        bmiResponse.height = heightEt.text.toString()
+
+         val retrofit = Retrofit.Builder()
+            .baseUrl("https://body-mass-index-bmi-calculator.p.rapidapi.com")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+         val api = retrofit.create(Api::class.java)
+
+        api.calculateBMI()
+            .enqueue(object : Callback<BMIResponse> {
+                override fun onResponse(call: Call<BMIResponse>, response: Response<BMIResponse>) {
 
 
-        val textWatcher = object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-                //nothing here
-            }
+                    if (response.isSuccessful) {
 
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                bmiResponse.height = s.toString()
-            }
+                        weightTv.text = response.body()!!.weight
+                        heightTv.text = response.body()!!.height
+                        bmiTv.text = response.body()!!.bmi
 
-            override fun afterTextChanged(s: Editable?) {
-// nothing
-            }
+                    } else {
+                        Log.d(TAG, "onResponse: not successful")
+                    }
 
-        }
+                }
 
-        val textWatcherw = object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-                //nothing here
-            }
+                override fun onFailure(call: Call<BMIResponse>, t: Throwable) {
+                    Log.d(TAG, "onFailure: no response")
 
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                bmiResponse.weight = s.toString()
-            }
 
-            override fun afterTextChanged(s: Editable?) {
-// nothing
-            }
+                }
 
-        }
+            })
 
-        heightEt.addTextChangedListener(textWatcher)
-        weightEt.addTextChangedListener(textWatcherw)
-
-        Log.d(TAG, "onCreateView: height and weight ${bmiResponse.height} , ${bmiResponse.weight}")
-        repo.calculateBMI("89","1.75")
-
-        Log.d(TAG, "onCreateView: this person ${repo.person}")
-
-        bmiTv.text = repo.person.bmi
-        weightTv.text = repo.person.weight
-        heightTv.text = repo.person.height
-
-        Log.d(TAG, "onCreateView: ${bmiTv.text}")
 
         return view
     }
